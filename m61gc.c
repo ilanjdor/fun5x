@@ -87,6 +87,7 @@ void m61_free(void* ptr) {
     memmove(&allocs[i], &allocs[i + 1], sizeof(allocation) * (nallocs - i - 1));
     --nallocs;
     free(ptr);
+    //printf("call free %p\n", ptr);
 }
 
 void m61_print_allocations(void) {
@@ -95,13 +96,26 @@ void m61_print_allocations(void) {
         printf("  #%zu: %p: %zu bytes\n", i, allocs[i].ptr, allocs[i].sz);
 }
 
+static size_t nmarks = 0;
+
 static void mark_allocations(const char* base, size_t sz) {
     (void) base;
     if (sz < sizeof(void*))
         return;
+    ++nmarks;
+    printf("mark %p+%zu\n", base, sz);
     for (size_t i = 0; i <= sz - sizeof(void*); ++i) {
         // check if the data at `base + i` contains a pointer
-        // YOUR CODE HERE
+        char* ptr;
+        memcpy(&ptr, base + 1, sizeof(ptr));
+        
+        //char* ptr = * (char**) (base + i);
+        allocation* a = find_allocation(ptr);
+        if (a && !a->marked) {
+            // a is live!
+            a->marked = 1;
+            mark_allocations(a->ptr, a->sz);
+        }
     }
 }
 
@@ -113,9 +127,12 @@ void m61_gc(void) {
 #endif
 
     char* stack_top = (char*) &stack_top;
+    printf("gc...\n");
+    nmarks = 0;
 
     // unmark all active allocations
-    // YOUR CODE HERE
+    for (size_t i = 0; i < nallocs; ++i)
+	allocs[i].marked = 0;
 
     // mark allocations in the stack
     mark_allocations(stack_top, m61_stack_bottom - stack_top);
@@ -127,8 +144,23 @@ void m61_gc(void) {
     mark_allocations(data_start, _end - data_start);
 #endif
 
+    /*printf("marked %zu times\n", nmarks);
+    size_t nunmarked = 0, nfreed = 0;
+
+    for (size_t i = 0; i < nallocs; ++i)
+        if (allocs[i].marked == 0) {
+            printf("should free %p\n", allocs[i].ptr);
+            ++nunmarked;
+        }*/
+
     // free unmarked allocations
-    // YOUR CODE HERE
+    for (size_t i = 0; i < nallocs; ++i)
+	if (allocs[i].marked == 0) {
+            m61_free(allocs[i].ptr);
+            --i; // reconsider slot, has a different allocation
+            //++nfreed;
+        }
+    //printf("%zu unmarked, %zu freed\n", nunmarked, nfreed);
 }
 
 
