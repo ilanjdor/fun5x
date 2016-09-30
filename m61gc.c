@@ -107,7 +107,7 @@ static void mark_allocations(const char* base, size_t sz) {
     for (size_t i = 0; i <= sz - sizeof(void*); ++i) {
         // check if the data at `base + i` contains a pointer
         char* ptr;
-        memcpy(&ptr, base + 1, sizeof(ptr));
+        memcpy(&ptr, base + i, sizeof(ptr));
         
         //char* ptr = * (char**) (base + i);
         allocation* a = find_allocation(ptr);
